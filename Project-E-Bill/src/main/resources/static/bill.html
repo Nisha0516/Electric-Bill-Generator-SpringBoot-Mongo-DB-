@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Electric Bill Payment</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            padding: 20px;
+            background: linear-gradient(90deg,#DFF2EB, #B9E5E8, #7AB2D3, #4A628A);
+            background-size: 400% 400%;
+            animation: gradientAnimation 15s ease infinite;
+            height: 100vh;
+            margin: 0;
+        }
+
+        @keyframes gradientAnimation {
+            0% {
+                background-position: 0% 50%;
+            }
+            50% {
+                background-position: 100% 50%;
+            }
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 50px;
+            border: 1px solid rgb(0, 0, 0);
+            border-radius: 5px;
+            background-color: rgb(255, 255, 255);
+        }
+
+        h1 {
+            text-align: center;
+        }
+
+        label {
+            display: block;
+            margin: 10px 0 5px;
+        }
+
+        input[type="text"], input[type="number"] {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0 20px;
+        }
+
+        button {
+            padding: 10px 20px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Generate Electric Bill</h1>
+
+        <form id="billForm">
+            <label for="customerName">Customer Name:</label>
+            <input type="text" id="customerName" required>
+
+            <label for="customerId">Customer ID:</label>
+            <input type="text" id="customerId" required>
+
+            <label for="unitsConsumed">Units Consumed:</label>
+            <input type="number" id="unitsConsumed" required>
+
+            <label for="unitRate">Unit Rate:</label>
+            <input type="number" id="unitRate" required>
+
+            <button type="submit">Generate Bill</button>
+        </form>
+
+        <h2 id="responseMessage" style="margin-top: 20px;"></h2>
+    </div>
+
+    <!-- Add jsPDF library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.4.0/jspdf.umd.min.js"></script>
+    <script>
+        document.getElementById("billForm").addEventListener("submit", function(event) {
+            event.preventDefault();
+
+            const customerName = document.getElementById("customerName").value;
+            const customerId = document.getElementById("customerId").value;
+            const unitsConsumed = parseFloat(document.getElementById("unitsConsumed").value);
+            const unitRate = parseFloat(document.getElementById("unitRate").value);
+
+            // Prepare the data to send to the backend
+            const billData = {
+                customerName: customerName,
+                customerId: customerId,
+                unitsConsumed: unitsConsumed,
+                unitRate: unitRate
+            };
+
+            // Send a POST request to generate the bill
+            fetch("http://localhost:8200/api/bills/generate", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(billData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                const totalAmount = data.totalAmount;
+
+                // Display the response message
+                document.getElementById("responseMessage").innerHTML = `
+                    <span>Welcome, ${customerName}!</span> <br>
+                    Your bill has been generated successfully. Total amount: ₹${totalAmount}.
+                    <br>
+                    <button id="downloadButton">Download Bill</button>
+                `;
+
+                // Add PDF generation logic to the download button
+                document.getElementById("downloadButton").addEventListener("click", function() {
+                    generatePdf(customerName, customerId, unitsConsumed, unitRate, totalAmount);
+                });
+            })
+            .catch(error => {
+                console.error("Error:", error);
+                document.getElementById("responseMessage").textContent = "Error generating bill. :(";
+            });
+        });
+
+        function generatePdf(customerName, customerId, unitsConsumed, unitRate, totalAmount) {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            // Add header
+            doc.setFontSize(18);
+            doc.setFont("helvetica", "bold");
+            doc.text("Electricity Bill Receipt", 105, 20, { align: "center" });
+
+            doc.setFontSize(12);
+            doc.setFont("helvetica", "normal");
+            doc.text("Tamil Nadu Electricity Board.", 105, 30, { align: "center" });
+            doc.text("7HMR+735, Perundurai, Tamil Nadu 638052", 105, 35, { align: "center" });
+            doc.text("Contact: +1 234 567 890 | tneb@gov.com", 105, 40, { align: "center" });
+
+            // Add horizontal line
+            doc.line(10, 45, 200, 45);
+
+            // Add customer details
+            doc.setFont("helvetica", "bold");
+            doc.text("Customer Details:", 20, 55);
+            doc.setFont("helvetica", "normal");
+            doc.text(`Name: ${customerName}`, 20, 65);
+            doc.text(`Customer ID: ${customerId}`, 20, 70);
+
+            // Add bill details
+            doc.setFont("helvetica", "bold");
+            doc.text("Bill Details:", 20, 85);
+            doc.setFont("helvetica", "normal");
+            doc.text(`Units Consumed: ${unitsConsumed}`, 20, 95);
+            doc.text(`Unit Rate: Rs.${unitRate}`, 20, 100);
+            doc.setFont("helvetica", "bold");
+            doc.text(`Total Amount: Rs.${totalAmount}`, 20, 110);
+
+            // Add footer
+            doc.setFont("helvetica", "italic");
+            doc.setFontSize(10);
+            doc.text("Thank you for choosing TNEB online payment.", 105, 130, { align: "center" });
+            doc.text("Please pay your bill by the due date to avoid late fees.", 105, 135, { align: "center" });
+
+            // Save the PDF
+            doc.save(`ElectricBill_${customerId}.pdf`);
+        }
+    </script>
+</body>
+</html>
